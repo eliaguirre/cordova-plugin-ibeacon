@@ -68,8 +68,12 @@ import java.lang.reflect.Method;
 import java.security.InvalidKeyException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.*;
+import java.lang.*;
 
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
 public class LocationManager extends CordovaPlugin implements BeaconConsumer {
@@ -81,7 +85,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     private static final int DEFAULT_FOREGROUND_BETWEEN_SCAN_PERIOD = 0;
     private static final String SAMPLE_EXPIRATION_MILLISECOND = "com.unarin.cordova.beacon.android.altbeacon.SampleExpirationMilliseconds";
     private static final int DEFAULT_SAMPLE_EXPIRATION_MILLISECOND = 20000;
-    private static final int DEFAULT_FOREGROUND_SCAN_PERIOD = 1100;
+    private static final int DEFAULT_FOREGROUND_SCAN_PERIOD = 600;
     private static int CDV_LOCATION_MANAGER_DOM_DELEGATE_TIMEOUT = 30;
     private static final int BUILD_VERSION_CODES_M = 23;
 
@@ -116,11 +120,9 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
         final Activity cordovaActivity = cordova.getActivity();
 
-        final int foregroundBetweenScanPeriod = this.preferences.getInteger(
-                FOREGROUND_BETWEEN_SCAN_PERIOD_NAME, DEFAULT_FOREGROUND_BETWEEN_SCAN_PERIOD);
+        final int foregroundBetweenScanPeriod =0;// this.preferences.getInteger(FOREGROUND_BETWEEN_SCAN_PERIOD_NAME, DEFAULT_FOREGROUND_BETWEEN_SCAN_PERIOD);
 
-        final int foregroundScanPeriod = this.preferences.getInteger(
-                FOREGROUND_SCAN_PERIOD_NAME, DEFAULT_FOREGROUND_SCAN_PERIOD);
+        final int foregroundScanPeriod = 600;//this.preferences.getInteger( FOREGROUND_SCAN_PERIOD_NAME, DEFAULT_FOREGROUND_SCAN_PERIOD);
 
         Log.i(TAG, "Determined config value FOREGROUND_SCAN_PERIOD: " +
                 String.valueOf(foregroundScanPeriod));
@@ -129,8 +131,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         iBeaconManager.setForegroundBetweenScanPeriod(foregroundBetweenScanPeriod);
         iBeaconManager.setForegroundScanPeriod(foregroundScanPeriod);
 
-        final int sampleExpirationMilliseconds = this.preferences.getInteger(
-                SAMPLE_EXPIRATION_MILLISECOND, DEFAULT_SAMPLE_EXPIRATION_MILLISECOND);
+        final int sampleExpirationMilliseconds = 400;//this.preferences.getInteger(SAMPLE_EXPIRATION_MILLISECOND, DEFAULT_SAMPLE_EXPIRATION_MILLISECOND);
 
         Log.i(TAG, "Determined config value SAMPLE_EXPIRATION_MILLISECOND: " +
                 String.valueOf(sampleExpirationMilliseconds));
@@ -534,7 +535,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     }
 
-    	public double Distancia_t2(Beacon b) {
+    	public static double Distancia_t2(Beacon b) {
     		if (b.getRssi() == 0 || b.getTxPower() == 0) {
     			return -1.0;
     		} else {
@@ -550,7 +551,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     		}
     	}
 
-    	public double Distancia(Beacon b){
+    	public static double Distancia(Beacon b){
             double _distancia=0;
     		if (_distancia == 0) {
     			double d = Distancia_t1 (b);
@@ -565,7 +566,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     		return _distancia;
     	}
 
-    	public double Distancia_t1 (Beacon b){
+    	public static double Distancia_t1 (Beacon b){
     		if (b.getRssi() == 0 || b.getTxPower() == 0) {
     			return -1.0;
     		} else {
@@ -576,10 +577,71 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
     				float ruido = 2.2f;
     				//return Math.pow(10, ( -txpwr - rssi ) / (10 * ruido));
     				//return (Mathf.Pow (10, (TxPower - RSSI) / (10 * ruido)));
-    				return (0.89976) * Mathf.Pow((float)ratio, 7.7095f) + 0.111;
+    				return (0.89976) * Math.pow((float)ratio, 7.7095f) + 0.111;
     			}
     		}
     	}
+
+
+
+    static class XBeacon implements Comparable<XBeacon>{
+
+        public String uuid;
+        public String major;
+        public String minor;
+        public String proximity;
+        public int rssi;
+        public int tx;
+        public double accuracy;
+        public long time;
+
+
+        public static XBeacon fromBeacon(Beacon region){
+            XBeacon x=new XBeacon();
+            x.uuid=region.getId1().toString();
+            x.major= region.getId2().toString();
+            x.minor= region.getId3().toString();
+            x.rssi = region.getRssi();
+            x.tx = region.getTxPower();
+            x.accuracy= Distancia(region);
+            x.proximity= nameOfProximity(Distancia(region));
+            x.time=System.currentTimeMillis();
+            return x;
+
+        }
+
+        public JSONObject toJson() throws JSONException{
+
+            JSONObject dict = new JSONObject();
+            dict.put("uuid",this.uuid);
+            dict.put("major",this.major);
+            dict.put("minor",this.minor);
+            dict.put("proximity",this.proximity);
+            dict.put("rssi",this.rssi);
+            dict.put("tx",this.tx);
+            dict.put("accuracy",this.accuracy);
+            return dict;
+        }
+
+        private static String nameOfProximity(double accuracy) {
+            if (accuracy < 0) {
+                return "ProximityUnknown";
+            }
+            if (accuracy < 0.5) {
+                return "ProximityImmediate";
+            }
+            if (accuracy <= 4.0) {
+                return "ProximityNear";
+            }
+            return "ProximityFar";
+        }
+
+        public int compareTo(XBeacon o){
+            return (new Double(accuracy)).compareTo(new Double(o.accuracy));
+        }
+
+    }
+        private HashMap<String,XBeacon> detectados=new HashMap<String,XBeacon>();
 
     private void createRangingCallbacks(final CallbackContext callbackContext) {
 
@@ -592,21 +654,25 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                         try {
                             JSONObject data = new JSONObject();
                             JSONArray beaconData = new JSONArray();
-                            Collections.sort(iBeacons, new Comparator<Beacon>() {
-                                @Override
-                                public int compare(Beacon left, Beacon right) {
-ghgch
-                                    return Distancia(left) - Distancia(right); // use your logic
-
-                                }
-                            });
+                            XBeacon temp=null;
                             for (Beacon beacon : iBeacons) {
-                                beaconData.put(mapOfBeacon(beacon));
+                                    detectados.put(beacon.getId2().toString(),XBeacon.fromBeacon(beacon));
+                            }
+                            List<XBeacon> bs = new ArrayList<XBeacon>(detectados.values());
+                            Collections.sort(bs);
+                            long tt=System.currentTimeMillis();
+                            debugLog("didRangeBeacons: " + detectados.size());
+                            for (XBeacon beacon : bs) {
+                                if(beacon.time+(15000)>tt){
+
+                                    beaconData.put(beacon.toJson());
+                                }else{
+                                    detectados.remove(beacon.major);
+                                }
                             }
                             data.put("eventType", "didRangeBeaconsInRegion");
                             data.put("region", mapOfRegion(region));
                             data.put("beacons", beaconData);
-
                             debugLog("didRangeBeacons: " + data.toString());
 
                             //send and keep reference to callback
