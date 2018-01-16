@@ -534,6 +534,53 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
     }
 
+    	public double Distancia_t2(Beacon b) {
+    		if (b.getRssi() == 0 || b.getTxPower() == 0) {
+    			return -1.0;
+    		} else {
+    			double ratio = b.getRssi() * 1.0 / -60;
+    			if (ratio < 1.0) {
+    				return (Math.pow ((float)ratio, 10));
+    			} else {
+    				//var ruido = 2.2f;
+    				//return Math.pow(10, ( -txpwr - rssi ) / (10 * ruido));
+    				//return (Mathf.Pow (10, (TxPower - RSSI) / (10 * ruido)));
+    				return ((0.89976) * Math.pow((float)ratio, 7.7095f) + 0.111);
+    			}
+    		}
+    	}
+
+    	public double Distancia(Beacon b){
+            double _distancia=0;
+    		if (_distancia == 0) {
+    			double d = Distancia_t1 (b);
+    			//return d;
+    			if (d < 2.5) {
+    				_distancia = d;
+    				return d;
+    			}
+    			_distancia = (d * 3 + Distancia_t2 (b)) / 4;
+    			return _distancia;
+    		}
+    		return _distancia;
+    	}
+
+    	public double Distancia_t1 (Beacon b){
+    		if (b.getRssi() == 0 || b.getTxPower() == 0) {
+    			return -1.0;
+    		} else {
+    			double ratio = b.getRssi() * 1.0 / b.getTxPower();
+    			if (ratio < 1.0) {
+    				return (Math.pow ((float)ratio, 10));
+    			} else {
+    				float ruido = 2.2f;
+    				//return Math.pow(10, ( -txpwr - rssi ) / (10 * ruido));
+    				//return (Mathf.Pow (10, (TxPower - RSSI) / (10 * ruido)));
+    				return (0.89976) * Mathf.Pow((float)ratio, 7.7095f) + 0.111;
+    			}
+    		}
+    	}
+
     private void createRangingCallbacks(final CallbackContext callbackContext) {
 
         iBeaconManager.setRangeNotifier(new RangeNotifier() {
@@ -542,14 +589,15 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
 
                 threadPoolExecutor.execute(new Runnable() {
                     public void run() {
-
                         try {
                             JSONObject data = new JSONObject();
                             JSONArray beaconData = new JSONArray();
                             Collections.sort(iBeacons, new Comparator<Beacon>() {
                                 @Override
                                 public int compare(Beacon left, Beacon right) {
-                                    return left.getDistance()<right.getDistance(); // use your logic
+
+                                    return Distancia(left) - Distancia(right); // use your logic
+
                                 }
                             });
                             for (Beacon beacon : iBeacons) {
@@ -1383,7 +1431,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
         dict.put("minor", region.getId3());
 
         // proximity
-        dict.put("proximity", nameOfProximity(region.getDistance()));
+        dict.put("proximity", nameOfProximity(Distancia(region)));
 
         // signal strength and transmission power
         dict.put("rssi", region.getRssi());
