@@ -595,7 +595,7 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             Collections.sort(iBeacons, new Comparator<Beacon>() {
                                 @Override
                                 public int compare(Beacon left, Beacon right) {
-
+ghgch
                                     return Distancia(left) - Distancia(right); // use your logic
 
                                 }
