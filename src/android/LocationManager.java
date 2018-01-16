@@ -664,7 +664,6 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                             debugLog("didRangeBeacons: " + detectados.size());
                             for (XBeacon beacon : bs) {
                                 if(beacon.time+(15000)>tt){
-
                                     beaconData.put(beacon.toJson());
                                 }else{
                                     detectados.remove(beacon.major);
