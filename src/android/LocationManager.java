@@ -546,6 +546,12 @@ public class LocationManager extends CordovaPlugin implements BeaconConsumer {
                         try {
                             JSONObject data = new JSONObject();
                             JSONArray beaconData = new JSONArray();
+                            Collections.sort(iBeacons, new Comparator<Beacon>() {
+                                @Override
+                                public int compare(Beacon left, Beacon right) {
+                                    return left.getDistance()<right.getDistance(); // use your logic
+                                }
+                            });
                             for (Beacon beacon : iBeacons) {
                                 beaconData.put(mapOfBeacon(beacon));
                             }
